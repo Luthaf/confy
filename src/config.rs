@@ -1,11 +1,13 @@
 use syntax::codemap::Span;
-use syntax::ext::base::TTMacroExpander;
-use syntax::parse::token::InternedString;
+use syntax::codemap::DUMMY_SP;
 use syntax::ext::base::{ExtCtxt, MacEager, MacResult, DummyResult};
 use syntax::ext::build::AstBuilder;
+use syntax::ext::base::TTMacroExpander;
+use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
+use syntax::parse::token::InternedString;
+use syntax::parse::token;
 use syntax::ast::TokenTree;
-use syntax::parse::token::Token;
-use syntax::parse::token::Lit;
+use syntax::ast;
 
 use toml;
 
@@ -14,6 +16,8 @@ use std::io;
 use std::fs::File;
 use std::error::Error as ErrorTrait;
 use std::fmt;
+use std::ops::Deref;
+use std::rc::Rc;
 
 pub struct Config {
     filename: InternedString,
@@ -90,8 +94,8 @@ fn get_argument(cx: &mut ExtCtxt, span: Span, args: &[TokenTree]) -> Option<Inte
     }
 
     if let TokenTree::Token(_, token) = args[0].clone() {
-        if let Token::Literal(lit, _) = token {
-            if let Lit::Str_(name) = lit {
+        if let token::Token::Literal(lit, _) = token {
+            if let token::Lit::Str_(name) = lit {
                 return Some(name.as_str());
             }
         }
@@ -113,21 +117,66 @@ impl TTMacroExpander for Config {
         // Convert path to &str
         let path = &*path;
         let value = match self.data.lookup(path) {
-            Some(value) => value,
+            Some(value) => TomlValue(value.clone()),
             None => {
                 cx.struct_span_err(span, &format!("Could not a value at '{}' in '{}'", path, &*self.filename)).emit();
                 return DummyResult::any(span);
             }
         };
 
-        let string = match value.as_str() {
-            Some(value) => value,
-            None => {
-                cx.struct_span_err(span, &format!("The value at {} is not a string", path)).emit();
-                return DummyResult::any(span);
-            }
-        };
+        MacEager::expr(quote_expr!(cx, $value))
+    }
+}
 
-        MacEager::expr(quote_expr!(cx, $string))
+#[derive(Debug)]
+struct TomlValue(toml::Value);
+impl Deref for TomlValue {
+    type Target = toml::Value;
+    fn deref(&self) -> &toml::Value {
+        &self.0
+    }
+}
+
+impl ToTokens for TomlValue {
+    fn to_tokens(&self, cx: &ExtCtxt) -> Vec<TokenTree> {
+        match self.0.clone() {
+            toml::Value::String(value) => value.to_tokens(cx),
+            toml::Value::Integer(value) => value.to_tokens(cx),
+            toml::Value::Boolean(value) => value.to_tokens(cx),
+            toml::Value::Datetime(value) => value.to_tokens(cx),
+            toml::Value::Float(value) => {
+                let istr = token::intern(&value.to_string()).as_str();
+                let lit = ast::Lit{
+                    node: ast::LitKind::FloatUnsuffixed(istr),
+                    span: DUMMY_SP
+                };
+                lit.to_tokens(cx)
+            },
+            toml::Value::Array(value) => {
+                let wrapped = value.iter().cloned().map(|t| TomlValue(t)).collect::<Vec<_>>();
+                let tokens = wrapped.to_tokens(cx);
+                // Create the token tree for a vector
+                let mut vector = cx.parse_tts(String::from("vec![1,]"));
+                let mut content = match &mut vector[2] {
+                    &mut TokenTree::Delimited(_, ref mut content) => Rc::make_mut(content).clone(),
+                    _ => panic!("Change in the AST representation")
+                };
+
+                // Fill the vector content with the right tokens
+                let comma = content.tts[1].clone();
+                content.tts.clear();
+                for token in tokens {
+                    content.tts.push(token);
+                    content.tts.push(comma.clone());
+                }
+
+                vector[2] = TokenTree::Delimited(DUMMY_SP, Rc::new(content));
+                return vector;
+            },
+            toml::Value::Table(_) => {
+                cx.span_err(DUMMY_SP, "Confy can not convert a TOML table to rust");
+                return vec![];
+            }
+        }
     }
 }

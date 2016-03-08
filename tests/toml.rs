@@ -3,5 +3,9 @@
 
 #[test]
 fn read_toml() {
-    assert_eq!(config!("key"), "value");
+    assert_eq!(config!("string"), "value");
+    assert_eq!(config!("int"), 42);
+    assert_eq!(config!("bool"), false);
+    assert_eq!(config!("float"), 78.8);
+    assert_eq!(config!("array"), vec![3, 4, 5]);
 }

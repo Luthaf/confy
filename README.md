@@ -17,14 +17,16 @@ And then you can use it like this:
 #![plugin(confy(file="Config.toml"))]
 
 fn main() {
-    assert_eq!(config!("key"), "value");
+    assert_eq!(config!("string"), "value");
+    assert_eq!(config!("int"), 42);
+    assert_eq!(config!("bool"), false);
+    assert_eq!(config!("float"), 78.8);
+    assert_eq!(config!("array"), vec![3, 4, 5]);
 }
 ```
 
-## Limitations
-
-- Confy can only read TOML configuration files;
-- You can only retrieve string values;
+You can retrieve all TOML types except for table: string, integers, floats, and
+boolean values.
 
 ## License
 

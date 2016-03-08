@@ -1,1 +1,5 @@
-key = "value"
+string = "value"
+int = 42
+bool = false
+float = 78.8
+array = [3, 4, 5]
