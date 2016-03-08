@@ -22,6 +22,9 @@ fn main() {
     assert_eq!(config!("bool"), false);
     assert_eq!(config!("float"), 78.8);
     assert_eq!(config!("array"), vec![3, 4, 5]);
+
+    // You can specify a default, just in case
+    assert_eq!(config!("key not found", "foo"), "foo");
 }
 ```
 

@@ -87,8 +87,8 @@ impl Config {
     }
 }
 
-fn get_argument(cx: &mut ExtCtxt, span: Span, args: &[TokenTree]) -> Option<InternedString> {
-    if args.len() != 1 {
+fn get_path(cx: &mut ExtCtxt, span: Span, args: &[TokenTree]) -> Option<InternedString> {
+    if args.len() == 0 {
         cx.struct_span_err(span, "config! take one string argument").emit();
         return None;
     }
@@ -107,7 +107,7 @@ fn get_argument(cx: &mut ExtCtxt, span: Span, args: &[TokenTree]) -> Option<Inte
 
 impl TTMacroExpander for Config {
     fn expand<'cx>(&self, cx: &'cx mut ExtCtxt, span: Span, args: &[TokenTree]) -> Box<MacResult + 'cx> {
-        let path = match get_argument(cx, span.clone(), args) {
+        let path = match get_path(cx, span.clone(), args) {
             Some(path) => path,
             None => {
                 return DummyResult::any(span);
@@ -119,8 +119,15 @@ impl TTMacroExpander for Config {
         let value = match self.data.lookup(path) {
             Some(value) => TomlValue(value.clone()),
             None => {
-                cx.struct_span_err(span, &format!("Could not a value at '{}' in '{}'", path, &*self.filename)).emit();
-                return DummyResult::any(span);
+                if args.len() != 3 {
+                    cx.struct_span_err(span, &format!("Could not get a value at '{}' in '{}'", path, &*self.filename)).emit();
+                    return DummyResult::any(span);
+                } else {
+                    // args[1] should be a comma
+                    let ttre = args[2].clone();
+                    // Send default value
+                    return MacEager::expr(quote_expr!(cx, $ttre));
+                }
             }
         };
 
