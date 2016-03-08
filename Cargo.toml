@@ -3,8 +3,10 @@ name = "confy"
 version = "0.1.0"
 authors = ["Luthaf <luthaf@luthaf.fr>"]
 description = "Compile-time configuration file reading"
-license = "MIT/Apache-2"
+license = "MIT/Apache-2.0"
 repository = "https://github.com/Luthaf/confy"
+documentation = "https://github.com/Luthaf/confy"
+keywords = ["configuration", "TOML", "plugin"]
 
 [lib]
 name = "confy"
