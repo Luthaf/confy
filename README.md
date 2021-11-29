@@ -1,15 +1,11 @@
 # Confy: compile-time configuration
 
-Confy is a Rust compiler plugin for reading and using a TOML configuration file
+Confy was a Rust compiler plugin for reading and using a TOML configuration file
 at compile-time.
 
-## Usage example
+**EDIT**: this is an abandonned experiment, the confy name on crates.io have since be transfered to https://github.com/rust-cli/confy.
 
-Add Confy to your `Cargo.toml`
-```toml
-[dependencies]
-confy = "0.1.0"
-```
+## Usage example
 
 And then you can use it like this:
 ```rust
